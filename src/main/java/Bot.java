@@ -3,15 +3,10 @@ import model.Answer;
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
-import org.telegram.telegrambots.meta.api.methods.send.SendLocation;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.Location;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -22,12 +17,8 @@ import org.telegram.telegrambots.meta.api.objects.stickers.StickerSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class Bot extends TelegramLongPollingBot {
-
 
     public static void main(String[] args) {
         ApiContextInitializer.init();
@@ -41,7 +32,12 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     @Override
-    public void onUpdateReceived(Update update) {
+    public synchronized void onUpdateReceived(Update update) {
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (update.hasMessage()) {
         String message = update.getMessage().getText();
         if(update.getMessage().getLocation() != null){
             sendWeather(update.getMessage().getChatId().toString(), update.getMessage().getLocation().getLatitude(),
@@ -97,7 +93,11 @@ public class Bot extends TelegramLongPollingBot {
                     sendMsg(update.getMessage().getChatId().toString(), "Вполне возможно, кто ж знает?!");
             }
         }
+                }
+            }
+        }).start();
     }
+
 
     public void sendWeather(String idUser, Float latitude, Float longitude) {
         try {
