@@ -45,7 +45,7 @@ public class DatabaseHandler extends Config {
     }
 
     public List<DataBaseModel> mailing() throws SQLException, ClassNotFoundException {
-        String select = "SELECT idUser FROM subscribes WHERE subscribe = 1 ";
+        String select = "SELECT * FROM subscribes WHERE subscribe = 1 ";
 
         Statement statement = getDbConnection().createStatement();
         ResultSet resultSet = statement.executeQuery(select);
@@ -53,7 +53,7 @@ public class DatabaseHandler extends Config {
         List<DataBaseModel> list = new ArrayList<DataBaseModel>();
 
         while (resultSet.next()){
-            list.add(new DataBaseModel(resultSet.getInt(1), resultSet.getFloat(2), resultSet.getFloat(3)));
+            list.add(new DataBaseModel(resultSet.getInt(1), resultSet.getFloat(3), resultSet.getFloat(4)));
         }
 
         return list;
