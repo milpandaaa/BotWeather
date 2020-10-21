@@ -4,6 +4,7 @@ import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendSticker;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -11,88 +12,98 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import org.telegram.telegrambots.meta.api.objects.stickers.Sticker;
-import org.telegram.telegrambots.meta.api.objects.stickers.StickerSet;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
 
 public class Bot extends TelegramLongPollingBot {
 
     public static void main(String[] args) {
         ApiContextInitializer.init();
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi();
+
+        TimerTask timerTask = new TimerTask();
+        Timer timer = new Timer();
+        timer.schedule(timerTask, 30_000, 60_000);
+
         try {
             telegramBotsApi.registerBot(new Bot());
-        }
-        catch (TelegramApiException e){
+        } catch (TelegramApiException e) {
             e.printStackTrace();
         }
     }
 
     @Override
-    public synchronized void onUpdateReceived(Update update) {
+    public void onUpdateReceived(Update update) {
 
         new Thread(new Runnable() {
             @Override
             public void run() {
                 if (update.hasMessage()) {
-        String message = update.getMessage().getText();
-        if(update.getMessage().getLocation() != null){
-            sendWeather(update.getMessage().getChatId().toString(), update.getMessage().getLocation().getLatitude(),
-                    update.getMessage().getLocation().getLongitude());
+                    String message = update.getMessage().getText();
+                    if (update.getMessage().getLocation() != null) {
+                        sendWeather(update.getMessage().getChatId().toString(), update.getMessage().getLocation().getLatitude(),
+                                update.getMessage().getLocation().getLongitude());
 
-            DatabaseHandler databaseHandler = new DatabaseHandler();
-            try {
-                if(databaseHandler.checkUser(update.getMessage().getChatId()))
-                    databaseHandler.updateLocation(update.getMessage().getChatId(),update.getMessage().getLocation().getLatitude(),
-                            update.getMessage().getLocation().getLongitude());
-                else
-                    databaseHandler.insert(update.getMessage().getChatId(), update.getMessage().getLocation().getLatitude(),
-                            update.getMessage().getLocation().getLongitude());
-            } catch (SQLException | ClassNotFoundException throwables) {
-                throwables.printStackTrace();
-            }
-        }
+                        DatabaseHandler databaseHandler = new DatabaseHandler();
+                        try {
+                            if (databaseHandler.checkUser(update.getMessage().getChatId()))
+                                databaseHandler.updateLocation(update.getMessage().getChatId(), update.getMessage().getLocation().getLatitude(),
+                                        update.getMessage().getLocation().getLongitude());
+                            else
+                                databaseHandler.insert(update.getMessage().getChatId(), update.getMessage().getLocation().getLatitude(),
+                                        update.getMessage().getLocation().getLongitude());
+                        } catch (SQLException | ClassNotFoundException throwables) {
+                            throwables.printStackTrace();
+                        }
+                    }
 
-        if(message != null){
-            switch (message){
-                case "/help":
-                    sendMsg(update.getMessage().getChatId().toString(), "/start");
-                    break;
-                case "/start":
-                    sendMsg(update.getMessage().getChatId().toString(), "Доброе пожаловать в бот!"+'\n'+
-                            "Чтобы узнать погоду, нужмите на кнопку 'Узнать погоду' или отправьте команду"+'\n'+"/weather");
-                    break;
-                case "/subscription":
-                case "Подписаться":
-                    DatabaseHandler databaseHandler = new DatabaseHandler();
-                    try {
-                        databaseHandler.update(Math.toIntExact(update.getMessage().getChatId()),1);
-                    } catch (SQLException | ClassNotFoundException throwables) {
-                        throwables.printStackTrace();
+                    if (message != null) {
+                        switch (message) {
+                            case "/help":
+                                sendMsg(update.getMessage().getChatId().toString(), "/start");
+                                break;
+                            case "/start":
+                                sendMsg(update.getMessage().getChatId().toString(), "Доброе пожаловать в бот!" + '\n' +
+                                        "Чтобы узнать погоду, нужмите на кнопку 'Узнать погоду' или отправьте команду" + '\n' + "/weather");
+                                sendStck(update.getMessage().getChatId().toString(), Stickers.HELLO.stickerId);
+                                break;
+                            case "/subscription":
+                            case "Подписаться":
+                                DatabaseHandler databaseHandler = new DatabaseHandler();
+                                try {
+                                    databaseHandler.update(Math.toIntExact(update.getMessage().getChatId()), 1);
+                                } catch (SQLException | ClassNotFoundException throwables) {
+                                    throwables.printStackTrace();
+                                }
+                                sendStck(update.getMessage().getChatId().toString(), Stickers.SUBSCRIPTION.stickerId);
+                                sendMsg(update.getMessage().getChatId().toString(), "Подписка совершена удачно!");
+                                break;
+                            case "/unsubscribe":
+                            case "Отписаться":
+                                DatabaseHandler database = new DatabaseHandler();
+                                try {
+                                    database.update(Math.toIntExact(update.getMessage().getChatId()), 0);
+                                } catch (SQLException | ClassNotFoundException throwables) {
+                                    throwables.printStackTrace();
+                                }
+                                sendStck(update.getMessage().getChatId().toString(), Stickers.UNSUBCRIBE.stickerId);
+                                sendMsg(update.getMessage().getChatId().toString(), "Отдписка совершена удачно!");
+                                break;
+                            case "/weather":
+                            case "Узнать погоду":
+                                sendStck(update.getMessage().getChatId().toString(), Stickers.WEATHER.stickerId);
+                                sendLct(update.getMessage().getChatId().toString(), "Чтобы узнать погоду, отправьте свою геолокацию");
+                                break;
+                            case "Никита":
+                                sendStck(update.getMessage().getChatId().toString(), Stickers.NIKITA.stickerId);
+                                break;
+                            default:
+                                sendStck(update.getMessage().getChatId().toString(), Stickers.DEFAULT.stickerId);
+                                sendMsg(update.getMessage().getChatId().toString(), "Вполне возможно, кто ж знает?!");
+                        }
                     }
-                    sendMsg(update.getMessage().getChatId().toString(), "Подписка совершена удачно!");
-                    break;
-                case "/unsubscribe":
-                case "Отписаться":
-                    DatabaseHandler database = new DatabaseHandler();
-                    try {
-                        database.update(Math.toIntExact(update.getMessage().getChatId()),0);
-                    } catch (SQLException | ClassNotFoundException throwables) {
-                        throwables.printStackTrace();
-                    }
-                    sendMsg(update.getMessage().getChatId().toString(), "Отдписка совершена удачно!");
-                    break;
-                case "/weather":
-                case "Узнать погоду":
-                    sendLct(update.getMessage().getChatId().toString(), "Чтобы узнать погоду, отправьте свою геолокацию");
-                    break;
-                default:
-                    sendMsg(update.getMessage().getChatId().toString(), "Вполне возможно, кто ж знает?!");
-            }
-        }
                 }
             }
         }).start();
@@ -139,16 +150,16 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    public String getBotUsername(){
+    public String getBotUsername() {
         return "WeatherLocationEveryDayBot";
     }
 
-    public String getBotToken(){
+    public String getBotToken() {
         return "1299434277:AAEBzRLeLbkokjczCfTzvooE1iYSPB0kWjo";
     }
 
-    public final Message sendMessage(SendMessage sendMessage) throws TelegramApiException{
-        if(sendMessage == null)
+    public final Message sendMessage(SendMessage sendMessage) throws TelegramApiException {
+        if (sendMessage == null)
             throw new TelegramApiException("Parameter sendMessage can not be null");
         else
             return this.sendApiMethod(sendMessage);
@@ -188,6 +199,22 @@ public class Bot extends TelegramLongPollingBot {
         keyboardFirstRow.add(new KeyboardButton("Отправить местоположение").setRequestLocation(true));
         keyboard.add(keyboardFirstRow);
         replyKeyboardMarkup.setKeyboard(keyboard);
+    }
+
+        public void sendStck(String chatId, String s) {
+            SendSticker sendSticker = new SendSticker();
+            sendSticker.setChatId(chatId);
+            sendSticker.setSticker(s);
+            try {
+                sendSticker(sendSticker);
+
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+        }
+
+    public Message sendSticker(SendSticker sendSticker) throws TelegramApiException {
+        return execute(sendSticker);
     }
 
 }
